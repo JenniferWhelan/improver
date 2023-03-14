@@ -110,7 +110,8 @@ class WindDirection(PostProcessingPlugin):
         self.wdir_cube_list = iris.cube.CubeList()
         self.r_vals_cube_list = iris.cube.CubeList()
         # Radius used in neighbourhood plugin as determined in IMPRO-491
-        self.nb_radius = 6000.0  # metres
+        #changed to 10000 per patch
+        self.nb_radius = 10000.0  # metres
         # Initialise neighbourhood plugin ready for use
         self.nbhood = NeighbourhoodProcessing(
             "square", self.nb_radius, weighted_mode=False
