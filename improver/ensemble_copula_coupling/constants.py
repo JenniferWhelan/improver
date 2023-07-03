@@ -83,10 +83,10 @@ BOUNDS_FOR_ECDF = {
     "lwe_sleetfall_rate": Bounds((0, 400.0), "mm h-1"),
     "lwe_snowfall_rate": Bounds((0, 400.0), "mm h-1"),
     "lwe_snowfall_rate_in_vicinity": Bounds((0, 400.0), "mm h-1"),
-    "rainfall_rate": Bounds((0, 400.0), "mm h-1"),
-    "rainfall_rate_in_vicinity": Bounds((0, 400.0), "mm h-1"),
+    "rainfall_rate": Bounds((0, 128.0), "mm h-1"),
+    "rainfall_rate_in_vicinity": Bounds((0, 128.0), "mm h-1"),
     # Temperature
-    "air_temperature": (Bounds((-100 - ABSOLUTE_ZERO, 60 - ABSOLUTE_ZERO), "Kelvin")),
+    "air_temperature": (Bounds((-110 - ABSOLUTE_ZERO, 60 - ABSOLUTE_ZERO), "Kelvin")),
     "feels_like_temperature": (
         Bounds((-100 - ABSOLUTE_ZERO, 60 - ABSOLUTE_ZERO), "Kelvin")
     ),
@@ -103,7 +103,7 @@ BOUNDS_FOR_ECDF = {
     # Others
     "air_pressure_at_sea_level": Bounds((79600, 108000), "Pa"),
     "dew_point_temperature": Bounds(
-        (-100 - ABSOLUTE_ZERO, 60 - ABSOLUTE_ZERO), "Kelvin"
+        (-110 - ABSOLUTE_ZERO, 60 - ABSOLUTE_ZERO), "Kelvin"
     ),
     "relative_humidity": Bounds((0, 1.2), "1"),
     "visibility_in_air": Bounds((0, 100000), "m"),
