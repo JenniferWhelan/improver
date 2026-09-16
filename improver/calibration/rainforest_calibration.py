@@ -153,9 +153,28 @@ class ApplyRainForestsCalibration(PostProcessingPlugin):
                 Cubelist containing feature variables.
         """
         expected_num_features = self._get_num_features()
+        #if expected_num_features != len(features):
+        #    raise ValueError(
+        #        "Number of expected features does not match number of feature cubes."
+        #    )
+        if hasattr(self, "_model_feature_names"):
+            actual = [cube.name() for cube in features]
+            actual.sort()
+            if actual != self._model_feature_names:
+                raise ValueError(
+                    f"Feature names from model file do not match supplied feature cubes.\n"
+                    f"  expected : {self._model_feature_names}\n"
+                    f"  got      : {actual}"
+                    f"Number of expected features {expected_num_features} does not match number of feature cubes {len(actual)}.\n"
+                )
         if expected_num_features != len(features):
+            if hasattr(self, "_model_feature_names"):
+                actual = [cube.name() for cube in features]
+                actual.sort()
             raise ValueError(
-                "Number of expected features does not match number of feature cubes."
+                    f"Number of expected features {expected_num_features} does not match number of feature cubes. {len(actual)}, cubelist:{len(features)}.\n"
+                    f"  expected : {self._model_feature_names}\n"
+                    f"  got      : {actual}"
             )
 
     def _get_feature_splits(self, model_config_dict) -> dict[np.float32, list[ndarray]]:
@@ -367,6 +386,13 @@ class ApplyRainForestsCalibrationLightGBM(ApplyRainForestsCalibration):
                     raise RuntimeError(
                         "Manual thread specification is unsupported due to compatibility issues with LightGBM."
                     )
+                #if not hasattr(self, "_model_feature_names"):
+                # parse feature_names from the txt file header (line 8, 0-indexed)
+                with open(model_filename) as f:
+                    for line in f:
+                        if line.startswith("feature_names="):
+                            self._model_feature_names = line[len("feature_names="):].strip().split()
+                            break
                 self.tree_models[lead_time, threshold] = booster
         self.bin_data = bin_data
         if self.bin_data:
@@ -742,7 +768,8 @@ class ApplyRainForestsCalibrationLightGBM(ApplyRainForestsCalibration):
         feature_cubes: CubeList,
         output_thresholds: list,
         threshold_units: str | None = None,
-    ) -> Cube:
+        save_all_realizations: bool = False,
+    ) -> Cube | CubeList:
         """Apply rainforests calibration to forecast cube.
 
         Ensemble forecasts must be in realization representation. Deterministic forecasts
@@ -777,9 +804,13 @@ class ApplyRainForestsCalibrationLightGBM(ApplyRainForestsCalibration):
             threshold_units:
                 Units in which output_thresholds are specified. If None, assumed to be the same as
                 forecast_cube.
+            save_all_realizations:
+                If True, return a CubeList of [per_realization_cube, mean_cube] so the
+                caller can save both. If False (default), return only the mean cube.
 
         Returns:
-            The calibrated forecast cube.
+            The mean calibrated probability cube, or a CubeList of
+            [per_realization_cube, mean_cube] when save_all_realizations is True.
 
         Raises:
             RuntimeError:
@@ -812,7 +843,7 @@ class ApplyRainForestsCalibrationLightGBM(ApplyRainForestsCalibration):
         else:
             output_thresholds_in_forecast_units = np.array(output_thresholds)
 
-        # Calculate probabilities at output thresholds
+        # Calculate probabilities at output thresholds for each realization
         interpolated_per_realization_CDF = self._get_ensemble_distributions(
             per_realization_CDF, aligned_forecast, output_thresholds_in_forecast_units
         )
@@ -822,6 +853,9 @@ class ApplyRainForestsCalibrationLightGBM(ApplyRainForestsCalibration):
             "realization", MEAN
         )
         calibrated_probability_cube.remove_coord("realization")
+
+        if save_all_realizations:
+            return CubeList([interpolated_per_realization_CDF, calibrated_probability_cube])
 
         return calibrated_probability_cube
 
@@ -915,6 +949,21 @@ class ApplyRainForestsCalibrationTreelite(ApplyRainForestsCalibrationLightGBM):
                     verbose=False,
                     nthread=threads,
                 )
+                if not hasattr(self, "_model_feature_names"):
+                    lgb_filename = Path(
+                        os.path.expandvars(
+                            str(
+                                sorted_model_config_dict[lead_time][threshold].get(
+                                    "lightgbm_model"
+                                )
+                            )
+                        )
+                    ).expanduser()
+                    with open(lgb_filename) as f:
+                        for line in f:
+                            if line.startswith("feature_names="):
+                                self._model_feature_names = line[len("feature_names="):].strip().split()
+                                break
 
         self.bin_data = bin_data
         if self.bin_data:

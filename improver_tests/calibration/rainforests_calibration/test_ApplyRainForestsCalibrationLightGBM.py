@@ -479,3 +479,32 @@ def test_process_deterministic(
         dim_coords=False
     )
     assert result.attributes == deterministic_forecast.attributes
+
+
+def test_process_returns_both_cubes_when_save_all_realizations_true(
+    ensemble_forecast, ensemble_features, plugin_and_dummy_models
+):
+    """Test that save_all_realizations=True returns CubeList of [per_realization, mean]."""
+    plugin_cls, dummy_models = plugin_and_dummy_models
+    plugin = plugin_cls(model_config_dict={})
+    plugin.tree_models, plugin.lead_times, plugin.model_thresholds = dummy_models
+    output_thresholds = [0.0, 0.0005, 0.001]
+
+    result = plugin.process(
+        ensemble_forecast,
+        ensemble_features,
+        output_thresholds,
+        save_all_realizations=True,
+    )
+    members_cube, mean_cube = result
+
+    # Members cube retains realization; mean cube does not
+    assert members_cube.coords("realization")
+    assert not mean_cube.coords("realization")
+
+    # Mean cube data matches manual mean of members cube
+    import numpy as np
+    from iris.analysis import MEAN
+
+    expected_mean = members_cube.collapsed("realization", MEAN)
+    np.testing.assert_array_equal(mean_cube.data, expected_mean.data)

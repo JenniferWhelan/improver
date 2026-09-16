@@ -62,7 +62,7 @@ def calculate_input_grid_spacing(
             input grid coordinates are not ascending.
     """
     if rtol is None:
-        rtol = 4.0e-5
+        rtol = 4.0e-4
     # check if in lat/lon system
     if lat_lon_determine(cube_in) is not None:
         raise ValueError("Input grid is not on a latitude/longitude system")

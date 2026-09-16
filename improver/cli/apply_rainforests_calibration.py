@@ -20,6 +20,8 @@ def process(
     threshold_units: str = None,
     threads: int = None,
     bin_data: bool = False,
+    save_all_realizations: bool = False,
+    output_realizations: str = None,
 ):
     """
     Calibrate a forecast cube using the Rainforests method.
@@ -68,6 +70,13 @@ def process(
             Bin data according to splits used in models. This speeds up prediction
             if there are many data points which fall into the same bins for all threshold models.
             Limits the calculation of common feature values by only calculating them once.
+        save_all_realizations:
+            If set, save both the per-realization calibrated probability cube and the
+            mean cube. The per-realization cube is written to output_realizations;
+            the mean cube is written to the standard --output path.
+        output_realizations (str):
+            Output file path for the per-realization calibrated probability cube.
+            Required when save_all_realizations is True.
 
     Returns:
         iris.cube.Cube:
@@ -76,6 +85,7 @@ def process(
     from iris.cube import CubeList
 
     from improver.calibration.rainforest_calibration import ApplyRainForestsCalibration
+    from improver.utilities.save import save_netcdf
 
     if output_threshold_config and output_thresholds:
         raise ValueError(
@@ -94,11 +104,21 @@ def process(
         thresholds = [float(key) for key in output_threshold_config.keys()]
     else:
         thresholds = [float(x) for x in output_thresholds]
-    return ApplyRainForestsCalibration(
+    if save_all_realizations and not output_realizations:
+        raise ValueError(
+            "--output-realizations must be specified when --save-all-realizations is set"
+        )
+    result = ApplyRainForestsCalibration(
         model_config_dict=model_config, threads=threads, bin_data=bin_data
     ).process(
         forecast,
         CubeList(features),
         output_thresholds=thresholds,
         threshold_units=threshold_units,
+        save_all_realizations=save_all_realizations,
     )
+    if save_all_realizations:
+        per_realization_cube, mean_cube = result
+        save_netcdf(per_realization_cube, output_realizations)
+        return mean_cube
+    return result
