@@ -10,7 +10,10 @@ from iris.coords import CellMethod
 from numpy.testing import assert_allclose
 
 from improver.ensemble_rank import EnsembleRankFraction
-from improver.synthetic_data.set_up_test_cubes import set_up_variable_cube
+from improver.synthetic_data.set_up_test_cubes import (
+    set_up_probability_cube,
+    set_up_variable_cube,
+)
 
 ATTRIBUTES = {
     "source": "Unit test",
@@ -140,3 +143,41 @@ def test_nan_member(distinct_cube):
     assert np.ma.is_masked(result.data)
     assert np.array_equal(np.ma.getmaskarray(result.data), np.ma.getmaskarray(expected))
     assert_allclose(result.data.filled(-1.0), expected.filled(-1.0), rtol=1e-6)
+
+
+def test_no_realization_coordinate():
+    """A deterministic cube gives zeros with its coordinates unchanged."""
+    data = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
+    cube = set_up_variable_cube(data, attributes=ATTRIBUTES)
+    result = EnsembleRankFraction()(cube)
+    assert not cube.coords("realization")
+    assert not result.coords("realization")
+    assert_allclose(result.data, np.zeros((2, 2), dtype=np.float32))
+    assert result.coords() == cube.coords()
+
+
+def test_single_member_dimension():
+    """A length-one realization dimension gives zeros and keeps the dimension."""
+    data = np.array([[[1.0, 2.0], [3.0, 4.0]]], dtype=np.float32)
+    cube = set_up_variable_cube(data, realizations=[0], attributes=ATTRIBUTES)
+    result = EnsembleRankFraction()(cube)
+    assert result.coord_dims("realization") == (0,)
+    assert_allclose(result.data, np.zeros((1, 2, 2), dtype=np.float32))
+    assert result.coords() == cube.coords()
+
+
+def test_single_member_scalar_coordinate(distinct_cube):
+    """A scalar realization coordinate gives zeros and keeps the coordinate."""
+    cube = distinct_cube[0]
+    result = EnsembleRankFraction()(cube)
+    assert result.coord_dims("realization") == ()
+    assert result.coord("realization") == cube.coord("realization")
+    assert_allclose(result.data, np.zeros((2, 2), dtype=np.float32))
+
+
+def test_probability_cube_raises():
+    """Probability cubes are rejected, naming the threshold coordinate."""
+    data = np.full((2, 2, 2), 0.5, dtype=np.float32)
+    cube = set_up_probability_cube(data, thresholds=[273.0, 275.0])
+    with pytest.raises(ValueError, match="threshold"):
+        EnsembleRankFraction()(cube)

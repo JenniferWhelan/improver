@@ -37,6 +37,27 @@ class EnsembleRankFraction(BasePlugin):
     """
 
     @staticmethod
+    def _check_input(cube: Cube) -> None:
+        """Reject probability cubes.
+
+        Args:
+            cube:
+                Input cube.
+
+        Raises:
+            ValueError:
+                If the cube carries a threshold coordinate, identified by the
+                IMPROVER convention ``var_name == "threshold"``.
+        """
+        threshold_coords = cube.coords(var_name="threshold")
+        if threshold_coords:
+            raise ValueError(
+                "EnsembleRankFraction requires a cube of forecast values, but "
+                f"{cube.name()} has a threshold coordinate "
+                f"({threshold_coords[0].name()}) and so is a probability cube."
+            )
+
+    @staticmethod
     def _rank_fraction(data: np.ndarray, axis: int) -> np.ma.MaskedArray:
         """Compute the rank fraction of data along one axis.
 
@@ -75,6 +96,7 @@ class EnsembleRankFraction(BasePlugin):
             Cube named ``ensemble_rank_fraction_of_<input name>`` with units of 1,
             float32 data and the same coordinates as the input.
         """
+        self._check_input(cube)
         realization_dims = (
             cube.coord_dims("realization") if cube.coords("realization") else ()
         )
