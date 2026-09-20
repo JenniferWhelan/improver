@@ -142,9 +142,10 @@ plugin lazily inside `process`, as `improver/cli/expected_value.py` does.
 | `improver_tests/ensemble_rank/__init__.py` | new |
 | `improver_tests/ensemble_rank/test_EnsembleRankFraction.py` | new |
 | `improver_tests/acceptance/test_ensemble_rank.py` | new |
+| `improver/api/__init__.py` | one line: register `"EnsembleRankFraction": "improver.ensemble_rank"` in `PROCESSING_MODULES` |
 
-No existing file is modified. `apply-rainforests-calibration` already accepts
-feature cubes carrying a realization dimension.
+No other existing file is modified. `apply-rainforests-calibration` already
+accepts feature cubes carrying a realization dimension.
 
 ## 4. Testing
 
