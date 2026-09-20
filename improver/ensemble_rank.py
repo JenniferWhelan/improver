@@ -28,10 +28,11 @@ class EnsembleRankFraction(BasePlugin):
     depend on ensemble size, which lets tree models trained on one ensemble be
     applied to another and tolerates missing members.
 
-    Masked or NaN members are excluded from N at that point and remain masked
-    in the output. A cube with no realization coordinate, or a single member,
-    yields zeros with its coordinates unchanged, so the plugin can be applied
-    uniformly to ensemble and deterministic forecasts.
+    Masked or non-finite (NaN or infinite) members are excluded from N at that
+    point and remain masked in the output. A cube with no realization
+    coordinate, or a single member, yields zeros with its coordinates
+    unchanged, so the plugin can be applied uniformly to ensemble and
+    deterministic forecasts.
 
     The output is intended as a per-member feature for Rainforests calibration.
     """
@@ -76,14 +77,15 @@ class EnsembleRankFraction(BasePlugin):
         # Invalid members are filled with -inf so they sort below every valid
         # member. Each valid member's "max" rank is then inflated by exactly
         # the number of invalid members at that point, which is subtracted.
-        filled = masked.filled(-np.inf)
+        filled = np.where(valid, np.ma.getdata(masked), -np.inf)
         ranks = rankdata(filled, method="max", axis=axis)
         n_invalid = np.sum(~valid, axis=axis, keepdims=True)
         n_valid = np.sum(valid, axis=axis, keepdims=True)
         valid_rank = ranks - n_invalid
         with np.errstate(divide="ignore", invalid="ignore"):
             fraction = (n_valid - valid_rank) / n_valid
-        return np.ma.masked_array(fraction.astype(np.float32), mask=~valid)
+        fraction = np.where(valid, fraction, np.nan).astype(np.float32)
+        return np.ma.masked_array(fraction, mask=~valid)
 
     def process(self, cube: Cube) -> Cube:
         """Compute the ensemble rank fraction of each member of the input cube.

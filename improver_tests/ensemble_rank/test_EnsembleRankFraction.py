@@ -4,6 +4,8 @@
 # See LICENSE in the root of the repository for full licensing details.
 """Unit tests for the EnsembleRankFraction plugin."""
 
+import warnings
+
 import numpy as np
 import pytest
 from iris.coords import CellMethod
@@ -131,6 +133,7 @@ def test_masked_member(distinct_cube):
     expected = _expected_with_member_one_missing_at_origin()
     assert np.array_equal(np.ma.getmaskarray(result.data), np.ma.getmaskarray(expected))
     assert_allclose(result.data.filled(-1.0), expected.filled(-1.0), rtol=1e-6)
+    assert np.isnan(np.ma.getdata(result.data)[1, 0, 0])
 
 
 def test_nan_member(distinct_cube):
@@ -143,6 +146,7 @@ def test_nan_member(distinct_cube):
     assert np.ma.is_masked(result.data)
     assert np.array_equal(np.ma.getmaskarray(result.data), np.ma.getmaskarray(expected))
     assert_allclose(result.data.filled(-1.0), expected.filled(-1.0), rtol=1e-6)
+    assert np.isnan(np.ma.getdata(result.data)[1, 0, 0])
 
 
 def test_no_realization_coordinate():
@@ -181,3 +185,32 @@ def test_probability_cube_raises():
     cube = set_up_probability_cube(data, thresholds=[273.0, 275.0])
     with pytest.raises(ValueError, match="threshold"):
         EnsembleRankFraction()(cube)
+
+
+def test_integer_input(distinct_cube):
+    """Integer data are ranked like floats and still produce float32 output."""
+    distinct_cube.data = distinct_cube.data.astype(np.int32)
+    result = EnsembleRankFraction()(distinct_cube)
+    expected = np.empty((3, 2, 2), dtype=np.float32)
+    expected[0] = 1.0 / 3.0
+    expected[1] = 0.0
+    expected[2] = 2.0 / 3.0
+    assert result.dtype == np.float32
+    assert_allclose(result.data, expected, rtol=1e-6)
+
+
+def test_all_members_invalid_at_a_point(distinct_cube):
+    """A point where every member is masked stays masked, holds NaN beneath
+    the mask, and raises no warnings."""
+    data = np.ma.masked_array(distinct_cube.data, mask=np.zeros((3, 2, 2), bool))
+    data[:, 1, 1] = np.ma.masked
+    distinct_cube.data = data
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        result = EnsembleRankFraction()(distinct_cube)
+    assert np.all(np.ma.getmaskarray(result.data)[:, 1, 1])
+    assert np.all(np.isnan(np.ma.getdata(result.data)[:, 1, 1]))
+    assert not np.any(np.ma.getmaskarray(result.data)[:, 0, 0])
+    assert_allclose(
+        np.ma.getdata(result.data)[:, 0, 0], [1.0 / 3.0, 0.0, 2.0 / 3.0], rtol=1e-6
+    )

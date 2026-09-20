@@ -15,7 +15,8 @@ def process(cube: cli.inputcube):
     For each member at each point, the output is the fraction of the ensemble
     whose value is strictly greater than that member's value, in the range 0 to
     1. Tied members share a value and the largest member is always 0. Masked or
-    NaN members are excluded from the count at that point and remain masked.
+    non-finite (NaN or infinite) members are excluded from the count at that
+    point and remain masked.
 
     A cube with no realization coordinate, or with a single member, produces
     zeros with its coordinates unchanged, so this CLI can be applied uniformly
