@@ -55,6 +55,7 @@ PROCESSING_MODULES = {
     "DroughtCode": "improver.fire_weather.drought_code",
     "DuffMoistureCode": "improver.fire_weather.duff_moisture_code",
     "EnforceConsistentForecasts": "improver.utilities.forecast_reference_enforcement",
+    "EnsembleRankFraction": "improver.ensemble_rank",
     "EnsembleReordering": "improver.ensemble_copula_coupling.ensemble_copula_coupling",
     "EstimateCoefficientsForEnsembleCalibration": "improver.calibration.emos_calibration",
     "EstimateDzRescaling": "improver.calibration.dz_rescaling",
