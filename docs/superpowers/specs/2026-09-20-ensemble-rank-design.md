@@ -65,9 +65,12 @@ dependency is introduced.
 
 ### Missing data
 
-- Masked or NaN members are excluded from N at that point and remain masked in
-  the output. A point with 48 valid members of 51 is ranked over 48.
+- Masked or non-finite (NaN or infinite) members are excluded from N at that
+  point and remain masked in the output. A point with 48 valid members of 51
+  is ranked over 48.
 - Output mask equals input mask.
+- Beneath the mask the stored value is NaN, so consumers that strip the mask
+  see a native missing value.
 
 ### Degenerate inputs
 
@@ -171,9 +174,11 @@ on a small grid with hand-computable answers:
 
 `improver_tests/acceptance/test_ensemble_rank.py` follows the expected-value
 pattern: run the CLI on a realization input and compare to a known-good output
-under `kgo_root() / "ensemble-rank"`. It is skipped automatically until the KGO
-data and its `SHA256SUMS` entry exist. The checksum is **not** to be fabricated;
-the user generates the KGO from real data and adds the entry.
+under `kgo_root() / "ensemble-rank"`. It skips when no KGO directory is
+configured, and also skips explicitly while the `ensemble-rank` input and KGO
+files are absent, so a KGO tree that predates this CLI does not fail. The
+checksum is **not** to be fabricated; the user generates the KGO from real
+data and adds the entry.
 
 ### 4.3 Verification before completion
 
