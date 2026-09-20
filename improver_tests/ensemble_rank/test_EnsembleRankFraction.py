@@ -89,3 +89,54 @@ def test_metadata(distinct_cube):
     assert result.shape == distinct_cube.shape
     for coord in distinct_cube.coords():
         assert result.coord_dims(coord.name()) == distinct_cube.coord_dims(coord.name())
+
+
+def test_realization_not_leading_axis(distinct_cube):
+    """Ranking is along realization wherever that dimension sits, and the
+    input dimension order is preserved."""
+    transposed = distinct_cube.copy()
+    transposed.transpose([1, 2, 0])
+    result = EnsembleRankFraction()(transposed)
+    expected = np.empty((2, 2, 3), dtype=np.float32)
+    expected[..., 0] = 1.0 / 3.0
+    expected[..., 1] = 0.0
+    expected[..., 2] = 2.0 / 3.0
+    assert result.coord_dims("realization") == (2,)
+    assert_allclose(result.data, expected, rtol=1e-6)
+
+
+def _expected_with_member_one_missing_at_origin():
+    """Expected data for distinct_cube when member 1 is missing at [0, 0]:
+    only members 0 (value 1) and 2 (value 0) remain there, so member 0
+    gets 0 and member 2 gets 1/2. Every other point is unchanged."""
+    expected = np.ma.empty((3, 2, 2), dtype=np.float32)
+    expected[0] = 1.0 / 3.0
+    expected[1] = 0.0
+    expected[2] = 2.0 / 3.0
+    expected[0, 0, 0] = 0.0
+    expected[2, 0, 0] = 0.5
+    expected[1, 0, 0] = np.ma.masked
+    return expected
+
+
+def test_masked_member(distinct_cube):
+    """A masked member is excluded from the count at that point and stays masked."""
+    data = np.ma.masked_array(distinct_cube.data, mask=np.zeros((3, 2, 2), bool))
+    data[1, 0, 0] = np.ma.masked
+    distinct_cube.data = data
+    result = EnsembleRankFraction()(distinct_cube)
+    expected = _expected_with_member_one_missing_at_origin()
+    assert np.array_equal(np.ma.getmaskarray(result.data), np.ma.getmaskarray(expected))
+    assert_allclose(result.data.filled(-1.0), expected.filled(-1.0), rtol=1e-6)
+
+
+def test_nan_member(distinct_cube):
+    """A NaN member behaves exactly like a masked one."""
+    data = distinct_cube.data.copy()
+    data[1, 0, 0] = np.nan
+    distinct_cube.data = data
+    result = EnsembleRankFraction()(distinct_cube)
+    expected = _expected_with_member_one_missing_at_origin()
+    assert np.ma.is_masked(result.data)
+    assert np.array_equal(np.ma.getmaskarray(result.data), np.ma.getmaskarray(expected))
+    assert_allclose(result.data.filled(-1.0), expected.filled(-1.0), rtol=1e-6)
